@@ -1,0 +1,34 @@
+plugins { id 'application' }
+repositories { mavenCentral() }
+java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+application { mainClass = 'com.fireescape.DesktopLauncher' }
+sourceSets.main.resources.srcDirs = ['assets']
+dependencies {
+    implementation 'com.badlogicgames.gdx:gdx:1.14.2'
+    implementation 'com.badlogicgames.gdx:gdx-backend-lwjgl3:1.14.2'
+    implementation 'com.badlogicgames.gdx:gdx-platform:1.14.2:natives-desktop'
+}
+run {
+    workingDir = file('assets')
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    if (System.getProperty('os.name').toLowerCase().contains('mac')) jvmArgs '-XstartOnFirstThread'
+}
+test { failOnNoDiscoveredTests = false }
+tasks.register('verifyGame', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.fireescape.GameChecks'
+}
+check.dependsOn verifyGame
+tasks.register('fatJar', Jar) {
+    archiveFileName = 'FireEscape.jar'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from sourceSets.main.output
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'META-INF/INDEX.LIST'
+    manifest { attributes 'Main-Class': application.mainClass.get(), 'Multi-Release': 'true', 'Enable-Native-Access': 'ALL-UNNAMED' }
+}
+
+// Do not package platform-specific caches extracted into assets at runtime.
+processResources { exclude '.lwjgl/**' }
